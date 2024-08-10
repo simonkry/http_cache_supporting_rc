@@ -1,55 +1,52 @@
-package(default_visibility = ["//visibility:public"])
-
 load(
     "@envoy//bazel:envoy_build_system.bzl",
     "envoy_cc_binary",
     "envoy_cc_library",
     "envoy_cc_test",
 )
+load("@envoy_api//bazel:api_build_system.bzl", "api_proto_package")
+
+package(default_visibility = ["//visibility:public"])
 
 envoy_cc_binary(
     name = "envoy",
     repository = "@envoy",
     deps = [
-        ":echo2_config",
+        ":http_cache_rc_config",
         "@envoy//source/exe:envoy_main_entry_lib",
     ],
 )
 
+api_proto_package()
+
 envoy_cc_library(
-    name = "echo2_lib",
-    srcs = ["echo2.cc"],
-    hdrs = ["echo2.h"],
+    name = "http_cache_rc_lib",
+    srcs = ["http_cache_rc.cc"],
+    hdrs = ["http_cache_rc.h"],
     repository = "@envoy",
     deps = [
-        "@envoy//envoy/buffer:buffer_interface",
-        "@envoy//envoy/network:connection_interface",
-        "@envoy//envoy/network:filter_interface",
-        "@envoy//source/common/common:assert_lib",
-        "@envoy//source/common/common:logger_lib",
+        ":pkg_cc_proto",
+        "@envoy//source/extensions/filters/http/common:pass_through_filter_lib",
     ],
 )
 
 envoy_cc_library(
-    name = "echo2_config",
-    srcs = ["echo2_config.cc"],
+    name = "http_cache_rc_config",
+    srcs = ["http_cache_rc_config.cc"],
     repository = "@envoy",
     deps = [
-        ":echo2_lib",
-        "@envoy//envoy/network:filter_interface",
-        "@envoy//envoy/registry:registry",
+        ":http_cache_rc_lib",
         "@envoy//envoy/server:filter_config_interface",
     ],
 )
 
 envoy_cc_test(
-    name = "echo2_integration_test",
-    srcs = ["echo2_integration_test.cc"],
-    data =  ["echo2_server.yaml"],
+    name = "http_cache_rc_integration_test",
+    srcs = ["http_cache_rc_integration_test.cc"],
     repository = "@envoy",
     deps = [
-        ":echo2_config",
-        "@envoy//test/integration:integration_lib"
+        ":http_cache_rc_config",
+        "@envoy//test/integration:http_integration_lib",
     ],
 )
 

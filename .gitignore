@@ -1,3 +1,8 @@
 bazel-*
 clang.bazelrc
 user.bazelrc
+envoy
+logs
+backup
+a.out
+test00.cc
