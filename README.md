@@ -16,7 +16,11 @@ For this project I'm only using `main`.
 
 ## Request coalescing (RC)
 
-Implementation based on mutex lock. When first request comes in, mutex is locked (Other requests to the same host have to wait until mutex lock is released.), then the response is processed and cached. After that the corresponding lock is released.
+Implementation is based on mutex lock. When first request comes in, mutex is locked (other simultaneous requests to the same host are merged and have to wait until the mutex lock is released). Then the response from origin is processed and cached. After that the corresponding lock is released and the response will be streamed in real-time to all waiting connections for that request path.
+
+[Explanation of request coalescing - bunny.net](https://support.bunny.net/hc/en-us/articles/6762047083922-Understanding-Request-Coalescing#:~:text=What%20is%20Request%20Coalescing%3F,they%20will%20be%20automatically%20merged.)
+
+[Implementation in Go](https://medium.com/@atarax/request-coalescing-a-shield-against-traffic-spikes-implementation-in-go-8d6cb3258630)
 
 ## Pros/Cons list of this assignment solution
 
@@ -61,6 +65,11 @@ To build the Envoy static binary:
 
 1. `git submodule update --init`
 2. `bazel build -c fastbuild --jobs=4 --local_ram_resources=8192 //:envoy` (adjust number of jobs and RAM usage based on your computer strength)
+
+## Example of usage
+
+1. `bazel-bin/envoy -c envoy.yaml`
+2. `curl -v http://localhost:10000` or `curl -v http://localhost:10001`
 
 ## Envoy logging
 

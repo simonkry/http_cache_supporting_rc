@@ -5,7 +5,7 @@
 namespace Envoy::Http {
 
 RingBufferHTTPCacheFactory HttpCacheRCFilter::cache_factory_ {RING_BUFFER_CACHE_CAPACITY};
-std::unordered_map<std::string, std::mutex> HttpCacheRCFilter::currently_served_hosts_;
+std::unordered_map<std::string, std::mutex> HttpCacheRCFilter::currently_served_hosts_ {};
 
 HttpCacheRCFilter::HttpCacheRCFilter(HttpCacheRCConfigSharedPtr config) : config_(std::move(config)) {}
 
