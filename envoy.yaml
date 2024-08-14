@@ -1,3 +1,7 @@
+# I couldn't manage to properly configure envoy filter chaining for my filter http_cache_rc,
+# so encoding methods weren't called at all after successfully building and running the Envoy binary
+# with this configuration file "envoy.yaml":
+
 static_resources:
 
   listeners:

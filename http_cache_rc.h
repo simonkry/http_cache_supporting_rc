@@ -4,10 +4,10 @@
 
 #include "http_cache_rc.pb.h"
 
-//#include <unordered_map>
+#include <unordered_map>
 #include "ring_buffer_cache.h"
 
-constexpr size_t RING_BUFFER_CACHE_CAPACITY = 1031; // prime number (using Hash function with linear probing)
+constexpr size_t RING_BUFFER_CACHE_CAPACITY = 1031; // prime number (efficient for hash function with linear probing)
 
 /***********************************************************************************************************************
  * CREDITS TO THE REPOSITORIES I TOOK INSPIRATION FROM:
@@ -24,6 +24,9 @@ public:
 
 using HttpCacheRCConfigSharedPtr = std::shared_ptr<HttpCacheRCConfig>;
 
+/**
+ * @brief HTTP cache filter class which methods are called by the server
+ */
 class HttpCacheRCFilter : public Http::PassThroughFilter,
                           public Logger::Loggable<Logger::Id::http>,
                           public std::enable_shared_from_this<HttpCacheRCFilter> {
@@ -38,10 +41,6 @@ public:
     // Http::StreamDecoderFilter
     FilterHeadersStatus decodeHeaders(RequestHeaderMap & headers, bool end_stream) override;
 
-    /**
-     * I couldn't manage to properly configure envoy filter chaining for this filter, so encoding methods weren't
-     * called at all after successfully building and running the Envoy binary with the configuration file "envoy.yaml"
-     */
     // Http::StreamEncoderFilter
     FilterHeadersStatus encodeHeaders(ResponseHeaderMap & headers, bool end_stream) override;
     FilterDataStatus encodeData(Buffer::Instance & data, bool end_stream) override;
@@ -50,10 +49,14 @@ public:
 private:
     const HttpCacheRCConfigSharedPtr config_;
 
-    // Cache shared among all instances of the class
-    static RingBufferHTTPCache cache_;
+    // Cache creator and administrator shared among all instances of the class
+    static RingBufferHTTPCacheFactory cache_factory_;
+
     bool entry_found_ = false;
     HashTableSlot current_entry_;
+
+    // Map to keep track of what hosts are being served right now to allow only one request being sent to origin (RC)
+    static std::unordered_map<std::string, std::mutex> currently_served_hosts_;
 
     // Another solution would be to use std::unordered_map (together with std::mutex)
     // However, the standard library implementation might be too complex and too slow for our purposes

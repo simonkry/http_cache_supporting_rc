@@ -21,8 +21,14 @@ api_proto_package()
 
 envoy_cc_library(
     name = "http_cache_rc_lib",
-    srcs = ["http_cache_rc.cc"],
-    hdrs = ["http_cache_rc.h"],
+    srcs = [
+        "http_cache_rc.cc",
+        "ring_buffer_cache.cc"
+    ],
+    hdrs = [
+        "http_cache_rc.h",
+        "ring_buffer_cache.h"
+    ],
     repository = "@envoy",
     deps = [
         ":pkg_cc_proto",
