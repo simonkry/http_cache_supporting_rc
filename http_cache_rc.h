@@ -27,6 +27,7 @@ using HttpCacheRCConfigSharedPtr = std::shared_ptr<HttpCacheRCConfig>;
 /**
  * @brief HTTP cache filter class which implements methods for two kinds of network streams.
  * Caches responses based on key calculated from hash function of host URL.
+ * Uses request coalescing technique.
  */
 class HttpCacheRCFilter : public Http::PassThroughFilter,
                           public Logger::Loggable<Logger::Id::http>,

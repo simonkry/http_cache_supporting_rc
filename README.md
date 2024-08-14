@@ -91,6 +91,16 @@ To run the regular Envoy tests from this project:
 
 `bazel test @envoy//test/...`
 
+## Conclusion
+
+- **[research]** The longest and hardest part of this project was definitely research (cca 40h), since I've started with Envoy from scratch.
+- **[implementation]** Fun but challenging part for me was implementation (cca 25h).
+- **[debug and testing]** I couldn't work out how to create correct configuration file, so I did little debugging and testing.
+
+To conclude, thanks to this project I've extended my knowledge about software networking from university (FIT CTU, subjects: BI-PSI, BI-VPS) and used my C and C++ coding experience.
+
+I am looking forward to receiving a code review.
+
 ## TODO list:
 
 - Create correct configuration file (`envoy.yaml`) to debug my code
