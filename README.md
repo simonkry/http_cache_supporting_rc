@@ -50,7 +50,7 @@ Preserving watermarking for coalesced requests:
     Aggregated Buffer Management: Managing buffer limits and watermark callbacks for groups of requests rather than individual ones.
     Version-Specific Considerations: Adapting the approach based on the HTTP version's flow control mechanisms. For HTTP/2 and HTTP/3, this might involve managing flow control windows at a group level.
 
-Watermarking is implemented for this solution.
+Watermarking is not implemented for this solution.
 
 Source:
 [Envoy docs - Flow control](https://github.com/envoyproxy/envoy/blob/main/source/docs/flow_control.md)

@@ -85,7 +85,7 @@ RingBufferHTTPCacheFactory::RingBufferHTTPCacheFactory(size_t cacheCapacity)
 
 void RingBufferHTTPCacheFactory::insert(const HashTableSlot & entry) {
     std::lock_guard<std::mutex> lock(mtx_);
-    // Only linear search O(n)
+    // Linear search O(n) - a place for improvement
     for (auto & cache : caches_) {
         if (cache.insert(entry)) return;
     }
@@ -99,7 +99,7 @@ void RingBufferHTTPCacheFactory::insert(const HashTableSlot & entry) {
 std::optional<HashTableSlot> RingBufferHTTPCacheFactory::at(const std::string_view & hostUrl) {
     std::optional<HashTableSlot> responseEntry;
     std::lock_guard<std::mutex> lock(mtx_);
-    // Only linear search O(n)
+    // Linear search O(n) - a place for improvement
     for (auto & cache : caches_) {
         responseEntry = cache.at(hostUrl);
         if (responseEntry != std::nullopt) return responseEntry;

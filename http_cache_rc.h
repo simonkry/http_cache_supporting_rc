@@ -25,7 +25,8 @@ public:
 using HttpCacheRCConfigSharedPtr = std::shared_ptr<HttpCacheRCConfig>;
 
 /**
- * @brief HTTP cache filter class which methods are called by the server
+ * @brief HTTP cache filter class which implements methods for two kinds of network streams.
+ * Caches responses based on key calculated from hash function of host URL.
  */
 class HttpCacheRCFilter : public Http::PassThroughFilter,
                           public Logger::Loggable<Logger::Id::http>,
@@ -53,7 +54,7 @@ private:
     static RingBufferHTTPCacheFactory cache_factory_;
 
     bool entry_found_ = false;
-    HashTableSlot current_entry_;
+    HashTableSlot current_entry_ {};
 
     // Map to keep track of what hosts are being served right now to allow only one request being sent to origin (RC)
     static std::unordered_map<std::string, std::mutex> currently_served_hosts_;

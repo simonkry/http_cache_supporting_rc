@@ -5,11 +5,14 @@
 namespace Envoy::Http {
 
 RingBufferHTTPCacheFactory HttpCacheRCFilter::cache_factory_ {RING_BUFFER_CACHE_CAPACITY};
+std::unordered_map<std::string, std::mutex> HttpCacheRCFilter::currently_served_hosts_;
 
 HttpCacheRCFilter::HttpCacheRCFilter(HttpCacheRCConfigSharedPtr config) : config_(std::move(config)) {}
 
 FilterHeadersStatus HttpCacheRCFilter::decodeHeaders(RequestHeaderMap & headers, bool end_stream) {
     current_entry_.host_url_ = headers.Host()->value().getStringView();
+    // This solution only with mutex lock is quite slow for a herd of same requests
+    // Better solution would be to use std::condition_variable to use notify_all(), or semaphores
     currently_served_hosts_[current_entry_.host_url_].lock();
     ENVOY_STREAM_LOG(debug, "decodeHeaders | end_stream: {}", *decoder_callbacks_, end_stream);
     ENVOY_STREAM_LOG(debug, "decodeHeaders | headers.size(): {}", *decoder_callbacks_, headers.size());
