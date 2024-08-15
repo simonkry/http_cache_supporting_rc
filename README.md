@@ -85,7 +85,7 @@ To print more info:
 
 ## Testing
 
-`bazel test -c fastbuild --jobs=1 --local_ram_resources=4096 --jvmopt="-Xmx4g" //:http_cache_integration_test` (adjust number of jobs and RAM usage based on your computer strength)
+`bazel test -c fastbuild --jobs=1 --local_ram_resources=4096 --jvmopt="-Xmx4g" //:http_cache_rc_integration_test` (adjust number of jobs and RAM usage based on your computer strength)
 
 To run the regular Envoy tests from this project:
 
@@ -97,7 +97,7 @@ To run the regular Envoy tests from this project:
 - **[implementation]** Fun but challenging part for me was implementation (cca 25h).
 - **[debug and testing]** I couldn't work out how to create correct configuration file, so I did little debugging and testing.
 
-To conclude, thanks to this project I've extended my knowledge about software networking from university (FIT CTU, subjects: BI-PSI, BI-VPS) and used my C and C++ coding experience.
+To conclude, thanks to this project I've extended my knowledge about software networking from university (FIT CTU, subjects: BI-PSI, BI-VPS, BI-ST1) and used my C and C++ coding experience.
 
 I am looking forward to receiving a code review.
 
