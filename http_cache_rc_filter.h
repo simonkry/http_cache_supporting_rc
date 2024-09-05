@@ -1,13 +1,9 @@
 #pragma once
 
 #include "source/extensions/filters/http/common/pass_through_filter.h"
-
 #include "http_cache_rc.pb.h"
-
-#include <unordered_map>
 #include "ring_buffer_cache.h"
-
-constexpr size_t RING_BUFFER_CACHE_CAPACITY = 1031; // prime number (efficient for hash function with linear probing)
+//#include <unordered_map>
 
 /***********************************************************************************************************************
  * CREDITS TO THE REPOSITORIES I TOOK INSPIRATION FROM:
@@ -19,18 +15,23 @@ namespace Envoy::Http {
 
 class HttpCacheRCConfig {
 public:
-    explicit HttpCacheRCConfig(const envoy::extensions::filters::http::http_cache_rc::DecoderEncoder &) {}
+    explicit HttpCacheRCConfig(const envoy::extensions::filters::http::http_cache_rc::Codec & proto_config);
+    const uint32_t & ring_buffer_capacity() const { return ring_buffer_capacity_; }
+
+private:
+    const uint32_t ring_buffer_capacity_;
 };
 
 using HttpCacheRCConfigSharedPtr = std::shared_ptr<HttpCacheRCConfig>;
 
 /**
- * @brief HTTP cache filter class which implements methods for two kinds of network streams.
- * Caches responses based on key calculated from hash function of host URL.
- * Uses request coalescing technique.
+ * @brief HTTP cache filter class which implements methods for both network stream types -
+ * decoder and encoder filters.
+ * It caches responses based on key calculated from hash function of host URL.
+ * Uses request coalescing technique based on std::mutex.
  */
 class HttpCacheRCFilter : public Http::PassThroughFilter,
-                          public Logger::Loggable<Logger::Id::http>,
+                          public Logger::Loggable<Logger::Id::filter>,
                           public std::enable_shared_from_this<HttpCacheRCFilter> {
 public:
     explicit HttpCacheRCFilter(HttpCacheRCConfigSharedPtr config);
@@ -54,19 +55,20 @@ private:
     // Cache creator and administrator shared among all instances of the class
     static RingBufferHTTPCacheFactory cache_factory_;
 
-    bool entry_found_ = false;
-    HashTableSlot current_entry_ {};
-
-    // Map to keep track of what hosts are being served right now to allow only one request being sent to origin (RC)
-    static std::unordered_map<std::string, std::mutex> currently_served_hosts_;
-
     // Another solution would be to use std::unordered_map (together with std::mutex)
-    // However, the standard library implementation might be too complex and too slow for our purposes
     // - Amortized Complexity: Due to rehashing, the amortized complexity of operations (insertion, search)
     //   is O(1) on average
     // The key is the URL of the Host
     // The value is all response fields (ResponseHeaderMap, Buffer::Instance, ResponseTrailerMap, MetadataMap)
-    //      static std::unordered_map<std::string_view, ResponseFields> cache2_;
+    // --->     static std::unordered_map<absl::string_view, ResponseFields> cache_;
+    // Cons: However, the standard library implementation might be too complex and too slow for our purposes
+
+    bool entry_found_ = false;
+    HashTableSlot current_entry_ {HashTableSlotState::OCCUPIED};
+
+    // Map to keep track of what hosts are being served right now to allow only one request being sent to origin
+    // (request coalescing)
+//    static std::unordered_map<std::string, std::mutex> currently_served_hosts_;
 };
 
 } // namespace Envoy::Http

@@ -22,17 +22,21 @@ api_proto_package()
 envoy_cc_library(
     name = "http_cache_rc_lib",
     srcs = [
-        "http_cache_rc.cc",
-        "ring_buffer_cache.cc"
+        "http_cache_rc_filter.cc",
+        "ring_buffer_cache.cc",
+        "hash_table_slot.cc"
     ],
     hdrs = [
-        "http_cache_rc.h",
-        "ring_buffer_cache.h"
+        "http_cache_rc_filter.h",
+        "ring_buffer_cache.h",
+        "hash_table_slot.h"
     ],
     repository = "@envoy",
     deps = [
         ":pkg_cc_proto",
         "@envoy//source/extensions/filters/http/common:pass_through_filter_lib",
+        "@envoy//source/common/http:header_map_lib",
+        "@envoy//source/common/buffer:buffer_lib",
     ],
 )
 

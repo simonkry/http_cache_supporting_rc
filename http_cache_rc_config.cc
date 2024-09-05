@@ -5,7 +5,7 @@
 
 #include "http_cache_rc.pb.h"
 #include "http_cache_rc.pb.validate.h"
-#include "http_cache_rc.h"
+#include "http_cache_rc_filter.h"
 
 /***********************************************************************************************************************
  * CREDITS TO: https://github.com/envoyproxy/envoy-filter-example/tree/main/http-filter-example
@@ -19,7 +19,7 @@ public:
                                                      const std::string&,
                                                      FactoryContext& context) override {
 
-    return createFilter(Envoy::MessageUtil::downcastAndValidate<const envoy::extensions::filters::http::http_cache_rc::DecoderEncoder&>(
+    return createFilter(Envoy::MessageUtil::downcastAndValidate<const envoy::extensions::filters::http::http_cache_rc::Codec&>(
                             proto_config, context.messageValidationVisitor()),
                         context);
   }
@@ -28,20 +28,20 @@ public:
    *  Return the Protobuf Message that represents your config in case you have config proto
    */
   ProtobufTypes::MessagePtr createEmptyConfigProto() override {
-    return ProtobufTypes::MessagePtr{new envoy::extensions::filters::http::http_cache_rc::DecoderEncoder()};
+    return ProtobufTypes::MessagePtr{new envoy::extensions::filters::http::http_cache_rc::Codec()};
   }
 
   std::string name() const override { return "envoy.filters.http.http_cache_rc"; }
 
 private:
-  Http::FilterFactoryCb createFilter(const envoy::extensions::filters::http::http_cache_rc::DecoderEncoder & proto_config, FactoryContext&) {
+  Http::FilterFactoryCb createFilter(const envoy::extensions::filters::http::http_cache_rc::Codec& proto_config, FactoryContext&) {
     Http::HttpCacheRCConfigSharedPtr config =
         std::make_shared<Http::HttpCacheRCConfig>(
             Http::HttpCacheRCConfig(proto_config));
 
     return [config](Http::FilterChainFactoryCallbacks& callbacks) -> void {
       auto filter = new Http::HttpCacheRCFilter(config);
-      callbacks.addStreamDecoderFilter(Http::StreamDecoderFilterSharedPtr{filter});
+      callbacks.addStreamFilter(Http::StreamFilterSharedPtr{filter});
     };
   }
 };

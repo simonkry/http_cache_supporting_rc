@@ -2,4 +2,8 @@ syntax = "proto3";
 
 package envoy.extensions.filters.http.http_cache_rc;
 
-message DecoderEncoder {}
+import "validate/validate.proto";
+
+message Codec {
+  uint32 ring_buffer_capacity = 1 [(validate.rules).uint32.gt = 0];
+}

@@ -6,7 +6,7 @@
 
 A simple, ring buffer RAM-only cache filter of HTTP responses optimized to solve the thundering herd problem by request coalescing (aka 'RC').
 
-See commentary in source code for further details.
+See commentary in source code for complete details.
 
 ## Git Flow
 
@@ -68,8 +68,8 @@ To build the Envoy static binary:
 
 ## Example of usage
 
-1. `bazel-bin/envoy -c envoy.yaml`
-2. `curl -v http://localhost:10000` or `curl -v http://localhost:10001`
+1. `bazel-bin/envoy -l debug --concurrency 1 -c envoy.yaml`
+2. `time curl -v http://localhost:8000` (or open URL in web browser)
 
 ## Envoy logging
 

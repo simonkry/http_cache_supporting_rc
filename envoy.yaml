@@ -1,7 +1,3 @@
-# I couldn't manage to properly configure envoy filter chaining for my filter http_cache_rc,
-# so encoding methods weren't called at all after successfully building and running the Envoy binary
-# with this configuration file "envoy.yaml":
-
 static_resources:
 
   listeners:
@@ -9,7 +5,7 @@ static_resources:
     address:
       socket_address:
         address: 0.0.0.0
-        port_value: 10000
+        port_value: 8000
     filter_chains:
     - filters:
       - name: envoy.filters.network.http_connection_manager
@@ -23,41 +19,8 @@ static_resources:
           http_filters:
           - name: envoy.filters.http.http_cache_rc          # before envoy.router because order matters!
             typed_config:
-              "@type": type.googleapis.com/envoy.extensions.filters.http.http_cache_rc.DecoderEncoder
-          - name: envoy.filters.http.router
-            typed_config:
-              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
-          route_config:
-            name: local_route
-            virtual_hosts:
-            - name: local_service
-              domains: ["*"]
-              routes:
-              - match:
-                  prefix: "/"
-                route:
-                  host_rewrite_literal: www.envoyproxy.io
-                  cluster: service_envoyproxy_io
-
-  - name: listener_1
-    address:
-      socket_address:
-        address: 0.0.0.0
-        port_value: 10001
-    filter_chains:
-    - filters:
-      - name: envoy.filters.network.http_connection_manager
-        typed_config:
-          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-          stat_prefix: ingress_http
-          access_log:
-          - name: envoy.access_loggers.stdout
-            typed_config:
-              "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
-          http_filters:
-          - name: envoy.filters.http.http_cache_rc          # before envoy.router because order matters!
-            typed_config:
-              "@type": type.googleapis.com/envoy.extensions.filters.http.http_cache_rc.DecoderEncoder
+              "@type": type.googleapis.com/envoy.extensions.filters.http.http_cache_rc.Codec
+              ring_buffer_capacity: 1031	            # prime number (efficient for hash function with linear probing)
           - name: envoy.filters.http.router
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
@@ -97,4 +60,4 @@ admin:
   address:
     socket_address:
       address: 0.0.0.0
-      port_value: 9901
+      port_value: 8111
