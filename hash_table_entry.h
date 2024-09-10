@@ -1,7 +1,6 @@
 #pragma once
 
 #include "source/common/http/header_map_impl.h"
-#include "source/common/buffer/buffer_impl.h"
 
 namespace Envoy::Http {
 
@@ -9,13 +8,13 @@ namespace Envoy::Http {
  * @brief States of a slot in ring buffer cache.
  * EMPTY     == allocated empty place
  * OCCUPIED  == filled with data
- * TOMBSTONE == a place of deleted element (unused)
+ * TOMBSTONE == a place of deleted element [[unused]]
  */
-enum class HashTableSlotState { EMPTY, OCCUPIED, TOMBSTONE };
+enum class HashTableSlotState { OCCUPIED, EMPTY, TOMBSTONE };
 
 using ResponseHeaderMapImplPtr = std::unique_ptr<ResponseHeaderMapImpl>;
-using ResponseTrailerMapImplPtr = std::unique_ptr<ResponseTrailerMapImpl>;
 
+using ResponseTrailerMapImplPtr = std::unique_ptr<ResponseTrailerMapImpl>;
 
 /*
  * @brief TODO
@@ -31,12 +30,11 @@ public:
     ResponseHeaderMapImplPtr headers_ {};
 
 private:
-    HeaderMap::ConstIterateCb collectAllHeadersCB = [this](const HeaderEntry& entry) -> HeaderMap::Iterate {
+    HeaderMap::ConstIterateCb collectAllHeadersCb = [this](const HeaderEntry& entry) -> HeaderMap::Iterate {
         headers_->addCopy(LowerCaseString(entry.key().getStringView()), entry.value().getStringView());
         return HeaderMap::Iterate::Continue;
     };
 };
-
 
 /*
  * @brief TODO
@@ -52,29 +50,27 @@ public:
     ResponseTrailerMapImplPtr trailers_ {};
 
 private:
-    HeaderMap::ConstIterateCb collectAllTrailersCB = [this](const HeaderEntry& entry) -> HeaderMap::Iterate {
+    HeaderMap::ConstIterateCb collectAllTrailersCb = [this](const HeaderEntry& entry) -> HeaderMap::Iterate {
         trailers_->addCopy(LowerCaseString(entry.key().getStringView()), entry.value().getStringView());
         return HeaderMap::Iterate::Continue;
     };
 };
 
-
 /**
- * @brief Struct to wrap up cache key, response attributes and its slot state.
+ * @brief Struct to wrap up cache key, hash table slot state and finally response parts - headers, data, trailers.
  */
-struct HashTableSlot {
-    HashTableSlot() = default;
-    explicit HashTableSlot(HashTableSlotState state) : state_(state) {}
-    HashTableSlot(const HashTableSlot& other);
-    HashTableSlot& operator=(HashTableSlot other);
-    HashTableSlot(HashTableSlot&& other) noexcept = default;
-    HashTableSlot& operator=(HashTableSlot&& other) noexcept = default;
+struct HashTableEntry {
+    HashTableEntry() = default;
+    explicit HashTableEntry(std::string requestHeadersStrKey) : request_headers_str_(std::move(requestHeadersStrKey)) {}
 
-    std::string host_url_ {};
+    // String representation of important (not all) request headers which is used for calculating cache key
+    std::string request_headers_str_ {};
+    HashTableSlotState slot_state_ { HashTableSlotState::OCCUPIED };
     ResponseHeaderWrapper header_wrapper_ {};
-    std::list<Buffer::OwnedImpl> data_ {};
+    std::list<std::string> data_ {};
     ResponseTrailerWrapper trailer_wrapper_ {};
-    HashTableSlotState state_ = HashTableSlotState::EMPTY;
 };
+
+using HashTableEntrySharedPtr = std::shared_ptr<HashTableEntry>;
 
 } // namespace Envoy::Http

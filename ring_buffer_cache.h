@@ -1,8 +1,6 @@
-// TODO(simonkry): fixes and tidying up; better hash key(whole headers), create separate file(s), RC
-
 #pragma once
 
-#include "hash_table_slot.h"
+#include "hash_table_entry.h"
 
 constexpr uint32_t LINEAR_PROBING_STEP = 17;
 
@@ -21,11 +19,8 @@ class RingBufferHTTPCache : public Logger::Loggable<Logger::Id::filter> {
 public:
     RingBufferHTTPCache() = default;
     explicit RingBufferHTTPCache(uint32_t capacity);
-    ~RingBufferHTTPCache() = default;
-    RingBufferHTTPCache(const RingBufferHTTPCache & other);
-    RingBufferHTTPCache & operator=(RingBufferHTTPCache other);
-    bool insert(const HashTableSlot& entry);
-    std::optional<HashTableSlot> at(const std::string & hostUrl) const;
+    bool insert(const HashTableEntrySharedPtr& entry);
+    HashTableEntrySharedPtr at(const std::string & requestHeadersStr) const;
     void reset();
     bool empty() const;
     bool full() const;
@@ -34,7 +29,7 @@ public:
 
 private:
     const uint32_t capacity_ {};
-    std::unique_ptr<HashTableSlot[]> buffer_ {};
+    std::unique_ptr<HashTableEntrySharedPtr[]> buffer_ {};
     uint32_t size_ = 0;
 };
 
@@ -46,16 +41,16 @@ class RingBufferHTTPCacheFactory : public Logger::Loggable<Logger::Id::filter> {
 public:
     RingBufferHTTPCacheFactory() = default;
     void initialize(uint32_t singleCacheCapacity);
-    void insert(const HashTableSlot& entry);
+    void insert(const HashTableEntrySharedPtr& entry);
     // No const methods because of locking std::mutex
-    std::optional<HashTableSlot> at(const std::string & hostUrl);
-    const std::vector<RingBufferHTTPCache> & getCaches();
+    HashTableEntrySharedPtr at(const std::string & requestHeadersStr);
+    const std::list<RingBufferHTTPCache> & getCaches();
     uint32_t getCacheCount();
 
 private:
     std::mutex mtx_ {};
     uint32_t single_cache_capacity_ {};
-    std::vector<RingBufferHTTPCache> caches_ {};
+    std::list<RingBufferHTTPCache> caches_ {};
     uint32_t cache_count_ = 0;
 };
 

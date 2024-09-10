@@ -6,3 +6,5 @@ logs
 backup
 a.out
 test00.cc
+.idea
+#.clwb

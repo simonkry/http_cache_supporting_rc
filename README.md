@@ -27,6 +27,7 @@ Implementation is based on mutex lock. When first request comes in, mutex is loc
 ### Pros:
 -     Multithread safety
 -     Cache key is calculated by a hash function with linear probing
+-     Not caching 304 Not Modified
 -     Simplicity in implementation of request coalescing - by mutex lock
 ### Cons:
 -     Number of cache ring buffers is not limited so we can run out of memory (dynamic heap allocation)
@@ -66,14 +67,20 @@ To build the Envoy static binary:
 1. `git submodule update --init`
 2. `bazel build -c fastbuild --jobs=4 --local_ram_resources=8192 //:envoy` (adjust number of jobs and RAM usage based on your computer strength)
 
+For debugging use:
+
+3. `bazel build -c dbg --jobs=4 --local_ram_resources=8192 //:envoy`
+
 ## Example of usage
 
 1. `bazel-bin/envoy -l debug --concurrency 1 -c envoy.yaml`
-2. `time curl -v http://localhost:8000` (or open URL in web browser)
+2. `time curl -v http://localhost:8000` (or open URL in web browser, use Developer Network Tool to see latency)
 
 ## Envoy logging
 
-`bazel-bin/envoy -c envoy.yaml --log-path logs/custom.log`
+To log into specified file:
+
+`bazel-bin/envoy -c envoy.yaml --log-path logs/runXX.log`
 
 To print more info:
 
@@ -95,7 +102,7 @@ To run the regular Envoy tests from this project:
 
 - **[research]** The longest and hardest part of this project was definitely research (cca 40h), since I've started with Envoy from scratch.
 - **[implementation]** Fun but challenging part for me was implementation (cca 25h).
-- **[debug and testing]** I couldn't work out how to create correct configuration file, so I did little debugging and testing.
+- **[debugging and testing]** I couldn't work out how to create correct configuration file, so I did little debugging and testing.
 
 To conclude, thanks to this project I've extended my knowledge about software networking from university (FIT CTU, subjects: BI-PSI, BI-VPS, BI-ST1) and used my C and C++ coding experience.
 
@@ -103,6 +110,9 @@ I am looking forward to receiving a code review.
 
 ## TODO list:
 
-- Create correct configuration file (`envoy.yaml`) to debug my code
-  - Or create a docker image
-- Debug and test cache implementation and request coalescing
+- Debug request coalescing
+- Debug timeouts
+- Test all possible scenarios:
+  - Multiple origins (single cache capacity overflow)
+  - Request coalescing for multiple origins
+- Commentary, Write-up

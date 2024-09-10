@@ -12,6 +12,9 @@ static_resources:
         typed_config:
           "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
           stat_prefix: ingress_http
+          # Downstream Connection Idle Timeout (default: 1h):
+          #common_http_protocol_options:
+          #  idle_timeout: 100s
           access_log:
           - name: envoy.access_loggers.stdout
             typed_config:
@@ -35,12 +38,18 @@ static_resources:
                 route:
                   host_rewrite_literal: www.envoyproxy.io
                   cluster: service_envoyproxy_io
+                  # Response Timeout (default: 15s):
+                  # Adjust the value for testing upstream request timeout (0.001s)
+#                  timeout: 0.001s
 
   clusters:
   - name: service_envoyproxy_io
     type: LOGICAL_DNS
     # Comment out the following line to test on v6 networks
     dns_lookup_family: V4_ONLY
+    # Upstream Connection Idle Timeout (default: 1h):
+    #common_http_protocol_options:
+    #  idle_timeout: 100s
     load_assignment:
       cluster_name: service_envoyproxy_io
       endpoints:

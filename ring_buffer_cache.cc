@@ -4,30 +4,17 @@ namespace Envoy::Http {
 
 RingBufferHTTPCache::RingBufferHTTPCache(uint32_t capacity) :
         capacity_(capacity),
-        buffer_(std::make_unique<HashTableSlot[]>(capacity)) {}
+        buffer_(std::make_unique<HashTableEntrySharedPtr[]>(capacity)) {}
 
-RingBufferHTTPCache::RingBufferHTTPCache(const RingBufferHTTPCache & other) :
-        capacity_(other.capacity_),
-        buffer_(std::make_unique<HashTableSlot[]>(other.capacity_)),
-        size_(other.size_) {
-    std::copy(other.buffer_.get(), other.buffer_.get() + other.size_, buffer_.get());
-}
-
-RingBufferHTTPCache & RingBufferHTTPCache::operator=(RingBufferHTTPCache other) {
-    std::swap(buffer_, other.buffer_);
-    std::swap(size_, other.size_);
-    return *this;
-}
-
-bool RingBufferHTTPCache::insert(const HashTableSlot& entry) {
+bool RingBufferHTTPCache::insert(const HashTableEntrySharedPtr& entry) {
     if ( full() ) return false;
     // Calculate cache key
-    uint32_t hashValue = std::hash<std::string>()(entry.host_url_) % capacity_;
+    uint32_t hashValue = std::hash<std::string>()(entry->request_headers_str_) % capacity_;
     uint32_t initialHashValue = hashValue;
     ENVOY_LOG(trace, "[RingBufferHTTPCache::insert] capacity_: {}", capacity_);
     ENVOY_LOG(trace, "[RingBufferHTTPCache::insert] hashValue: {}", hashValue);
     // Using hash function with linear probing
-    while ( buffer_[hashValue].state_ == HashTableSlotState::OCCUPIED ) {
+    while ( buffer_[hashValue] != nullptr && buffer_[hashValue]->slot_state_ == HashTableSlotState::OCCUPIED ) {
         hashValue = (hashValue + LINEAR_PROBING_STEP) % capacity_;
         // Check cycle
         if (hashValue == initialHashValue) return false;
@@ -37,28 +24,28 @@ bool RingBufferHTTPCache::insert(const HashTableSlot& entry) {
     return true;
 }
 
-std::optional<HashTableSlot> RingBufferHTTPCache::at(const std::string & hostUrl) const {
+HashTableEntrySharedPtr RingBufferHTTPCache::at(const std::string & requestHeadersStr) const {
     // Calculate cache key
-    uint32_t hashValue = std::hash<std::string>()(hostUrl) % capacity_;
+    uint32_t hashValue = std::hash<std::string>()(requestHeadersStr) % capacity_;
     uint32_t initialHashValue = hashValue;
     ENVOY_LOG(trace, "[RingBufferHTTPCache::at] capacity_: {}", capacity_);
     ENVOY_LOG(trace, "[RingBufferHTTPCache::at] hashValue: {}", hashValue);
     // Using hash function with linear probing
-    while ( buffer_[hashValue].state_ != HashTableSlotState::EMPTY ) {
-        if ( buffer_[hashValue].state_ == HashTableSlotState::OCCUPIED &&
-             buffer_[hashValue].host_url_ == hostUrl ) {
+    while ( buffer_[hashValue] != nullptr && buffer_[hashValue]->slot_state_ != HashTableSlotState::EMPTY ) {
+        if ( buffer_[hashValue]->slot_state_ == HashTableSlotState::OCCUPIED &&
+             buffer_[hashValue]->request_headers_str_ == requestHeadersStr ) {
             return buffer_[hashValue];
         }
         hashValue = (hashValue + LINEAR_PROBING_STEP) % capacity_;
         // Check cycle - mismatch in the whole buffer
-        if (hashValue == initialHashValue) return std::nullopt;
+        if (hashValue == initialHashValue) return nullptr;
     }
-    return std::nullopt;
+    return nullptr;
 }
 
 void RingBufferHTTPCache::reset() {
     buffer_ = nullptr;
-    buffer_ = std::make_unique<HashTableSlot[]>(capacity_);
+    buffer_ = std::make_unique<HashTableEntrySharedPtr[]>(capacity_);
 }
 
 bool RingBufferHTTPCache::empty() const {
@@ -86,9 +73,9 @@ void RingBufferHTTPCacheFactory::initialize(uint32_t singleCacheCapacity) {
     cache_count_ = 1;
 }
 
-void RingBufferHTTPCacheFactory::insert(const HashTableSlot& entry) {
+void RingBufferHTTPCacheFactory::insert(const HashTableEntrySharedPtr& entry) {
     std::lock_guard<std::mutex> lock(mtx_);
-    // Linear search O(n) in vector - a place for improvement
+    // Linear search O(n) in list - a place for improvement
     for (auto & cache : caches_) {
         if (cache.insert(entry)) return;
     }
@@ -99,18 +86,18 @@ void RingBufferHTTPCacheFactory::insert(const HashTableSlot& entry) {
     caches_.back().insert(entry);
 }
 
-std::optional<HashTableSlot> RingBufferHTTPCacheFactory::at(const std::string & hostUrl) {
-    std::optional<HashTableSlot> responseEntry;
+HashTableEntrySharedPtr RingBufferHTTPCacheFactory::at(const std::string & requestHeadersStr) {
+    HashTableEntrySharedPtr responseEntryPtr;
     std::lock_guard<std::mutex> lock(mtx_);
-    // Linear search O(n) in vector - a place for improvement
+    // Linear search O(n) in list - a place for improvement
     for (const auto & cache : caches_) {
-        responseEntry = cache.at(hostUrl);
-        if (responseEntry != std::nullopt) return responseEntry;
+        responseEntryPtr = cache.at(requestHeadersStr);
+        if (responseEntryPtr != nullptr) return responseEntryPtr;
     }
-    return std::nullopt;
+    return nullptr;
 }
 
-const std::vector<RingBufferHTTPCache> & RingBufferHTTPCacheFactory::getCaches() {
+const std::list<RingBufferHTTPCache> & RingBufferHTTPCacheFactory::getCaches() {
     std::lock_guard<std::mutex> lock(mtx_);
     return caches_;
 }
