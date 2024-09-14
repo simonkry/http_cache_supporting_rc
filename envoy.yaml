@@ -6,6 +6,9 @@ static_resources:
       socket_address:
         address: 0.0.0.0
         port_value: 8000
+    # Envoy's own balancer of worker threads
+    #connection_balance_config:
+    #  exact_balance: {}
     filter_chains:
     - filters:
       - name: envoy.filters.network.http_connection_manager
@@ -23,7 +26,7 @@ static_resources:
           - name: envoy.filters.http.http_cache_rc          # before envoy.router because order matters!
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.http_cache_rc.Codec
-              ring_buffer_capacity: 1031	            # prime number (efficient for hash function with linear probing)
+              ring_buffer_capacity: 1031	                # prime number (efficient for hash function with linear probing)
           - name: envoy.filters.http.router
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
@@ -39,8 +42,8 @@ static_resources:
                   host_rewrite_literal: www.envoyproxy.io
                   cluster: service_envoyproxy_io
                   # Response Timeout (default: 15s):
-                  # Adjust the value for testing upstream request timeout (0.001s)
-#                  timeout: 0.001s
+                  # Adjust the value for testing upstream request timeout (to 0.001s)
+                  #timeout: 0.001s
 
   clusters:
   - name: service_envoyproxy_io

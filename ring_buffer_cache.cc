@@ -29,7 +29,7 @@ HashTableEntrySharedPtr RingBufferHTTPCache::at(const std::string & requestHeade
     uint32_t hashValue = std::hash<std::string>()(requestHeadersStr) % capacity_;
     uint32_t initialHashValue = hashValue;
     ENVOY_LOG(trace, "[RingBufferHTTPCache::at] capacity_: {}", capacity_);
-    ENVOY_LOG(trace, "[RingBufferHTTPCache::at] hashValue: {}", hashValue);
+    ENVOY_LOG(trace, "[RingBufferHTTPCache::at] requestHeadersStr: {}, hashValue: {}", requestHeadersStr, hashValue);
     // Using hash function with linear probing
     while ( buffer_[hashValue] != nullptr && buffer_[hashValue]->slot_state_ != HashTableSlotState::EMPTY ) {
         if ( buffer_[hashValue]->slot_state_ == HashTableSlotState::OCCUPIED &&

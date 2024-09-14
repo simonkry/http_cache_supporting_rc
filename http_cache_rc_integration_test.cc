@@ -18,7 +18,8 @@ public:
 
     void initialize() override {
         config_helper_.prependFilter(
-            "{ name: envoy.filters.http.http_cache_rc, typed_config: { \"@type\": type.googleapis.com/envoy.extensions.filters.http.http_cache_rc.DecoderEncoder } }");
+            "{ name: envoy.filters.http.http_cache_rc, typed_config: { \"@type\": type.googleapis.com/envoy.extensions.filters.http.http_cache_rc.Codec, "
+                     "ring_buffer_capacity: 1031 } }");
         HttpIntegrationTest::initialize();
     }
 };

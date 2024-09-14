@@ -4,7 +4,7 @@
 
 ### Description:
 
-A simple, ring buffer RAM-only cache filter of HTTP responses optimized to solve the thundering herd problem by request coalescing (aka 'RC').
+A simple, ring buffer RAM-only cache filter of HTTP responses optimized to solve the thundering herd problem by request coalescing.
 
 See commentary in source code for complete details.
 
@@ -12,11 +12,11 @@ See commentary in source code for complete details.
 
 In real large scale production environment I would use `develop`, `feature-*`, `release-*` and `hotfix-*` branches.
 
-For this project I'm only using `main`.
+For this project I'm using only the `main` branch.
 
 ## Request coalescing (RC)
 
-Implementation is based on mutex lock. When first request comes in, mutex is locked (other simultaneous requests to the same host are merged and have to wait until the mutex lock is released). Then the response from origin is processed and cached. After that the corresponding lock is released and the response will be streamed in real-time to all waiting connections for that request path.
+the response will be streamed in real-time to all waiting connections for that request path.
 
 [Explanation of request coalescing - bunny.net](https://support.bunny.net/hc/en-us/articles/6762047083922-Understanding-Request-Coalescing#:~:text=What%20is%20Request%20Coalescing%3F,they%20will%20be%20automatically%20merged.)
 
@@ -73,7 +73,7 @@ For debugging use:
 
 ## Example of usage
 
-1. `bazel-bin/envoy -l debug --concurrency 1 -c envoy.yaml`
+1. `bazel-bin/envoy -l debug --concurrency 1 -c envoy.yaml` or `bazel-bin/envoy -l debug -c envoy.yaml`
 2. `time curl -v http://localhost:8000` (or open URL in web browser, use Developer Network Tool to see latency)
 
 ## Envoy logging
@@ -93,6 +93,8 @@ To print more info:
 ## Testing
 
 `bazel test -c fastbuild --jobs=1 --local_ram_resources=4096 --jvmopt="-Xmx4g" //:http_cache_rc_integration_test` (adjust number of jobs and RAM usage based on your computer strength)
+OR
+`bazel test -c fastbuild --jobs=4 --local_ram_resources=8192 --jvmopt="-Xmx8g" //:http_cache_rc_integration_test`
 
 To run the regular Envoy tests from this project:
 
@@ -115,4 +117,5 @@ I am looking forward to receiving a code review.
 - Test all possible scenarios:
   - Multiple origins (single cache capacity overflow)
   - Request coalescing for multiple origins
+  - Deadlock!
 - Commentary, Write-up
