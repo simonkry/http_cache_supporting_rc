@@ -23,13 +23,15 @@ envoy_cc_library(
     name = "http_cache_rc_lib",
     srcs = [
         "http_cache_rc_filter.cc",
-        "ring_buffer_cache.cc",
-        "hash_table_entry.cc"
+        "http_lru_ram_cache.cc",
+        "cache_entry.cc",
+        "ring_buffer.cc"
     ],
     hdrs = [
         "http_cache_rc_filter.h",
-        "ring_buffer_cache.h",
-        "hash_table_entry.h"
+        "http_lru_ram_cache.h",
+        "cache_entry.h",
+        "ring_buffer.h"
     ],
     repository = "@envoy",
     deps = [

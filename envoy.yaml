@@ -26,7 +26,7 @@ static_resources:
           - name: envoy.filters.http.http_cache_rc          # before envoy.router because order matters!
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.http_cache_rc.Codec
-              ring_buffer_capacity: 1031	                # prime number (efficient for hash function with linear probing)
+              ring_buffer_capacity: 1024                    # number of blocks
           - name: envoy.filters.http.router
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
