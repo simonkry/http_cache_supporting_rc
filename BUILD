@@ -29,6 +29,7 @@ envoy_cc_library(
     ],
     hdrs = [
         "http_cache_rc_filter.h",
+        "http_cache_rc_config.h",
         "http_lru_ram_cache.h",
         "cache_entry.h",
         "ring_buffer.h"
@@ -44,7 +45,7 @@ envoy_cc_library(
 
 envoy_cc_library(
     name = "http_cache_rc_config",
-    srcs = ["http_cache_rc_config.cc"],
+    srcs = ["http_cache_rc_config_factory.cc"],
     repository = "@envoy",
     deps = [
         ":http_cache_rc_lib",

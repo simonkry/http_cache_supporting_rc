@@ -7,25 +7,13 @@
 #pragma once
 
 #include "source/extensions/filters/http/common/pass_through_filter.h"
-#include "http_cache_rc.pb.h"
+#include "http_cache_rc_config.h"
 #include "http_lru_ram_cache.h"
+
+constexpr uint32_t COND_VAR_TIMEOUT = 5; // seconds
 
 namespace Envoy::Http {
 
-/**
- * @brief Config class which is used by the filter factory class.
- * Contains configurable parameter uint32_t for allocating ring buffers.
- */
-class HttpCacheRCConfig {
-public:
-    explicit HttpCacheRCConfig(const envoy::extensions::filters::http::http_cache_rc::Codec& proto_config);
-    const uint32_t & ring_buffer_capacity() const { return ring_buffer_capacity_; }
-
-private:
-    const uint32_t ring_buffer_capacity_;
-};
-
-using HttpCacheRCConfigSharedPtr = std::shared_ptr<HttpCacheRCConfig>;
 using CondVarSharedPtr = std::shared_ptr<std::condition_variable>;
 using ListDecoderCallbacksSharedPtr = std::shared_ptr<std::list<Http::StreamDecoderFilterCallbacks*>>;
 
@@ -69,7 +57,7 @@ enum class ThreadStatus { INITIAL_LEADER, LEADER, OTHER_GROUP_LEADER, WAITING };
 class HttpCacheRCFilter : public Http::PassThroughFilter,
                           public Logger::Loggable<Logger::Id::filter> {
 public:
-    explicit HttpCacheRCFilter(HttpCacheRCConfigSharedPtr config) : config_(std::move(config)) {}
+    explicit HttpCacheRCFilter(HttpCacheRCConfigSharedPtr config);
     ~HttpCacheRCFilter() override = default;
 
     // Http::StreamFilterBase
@@ -93,8 +81,8 @@ private:
     bool isLeaderOfOtherRCGroup() const;
     void waitForResponseAndServe();
     void waitOnCondVar() const;
+    void notifyWaitingCoalescedRequests(const CacheEntrySharedPtr& responseEntryPtr) const;
     void detachCurrentRCGroup() const;
-    void notifyWaitingCoalescedRequests() const;
     void serveResponseToCurrentRCGroup();
     void attendToOtherRCGroups();
     void releaseLeaderThreadIfPossible() const;
@@ -116,7 +104,7 @@ private:
     // Map to keep track of what hosts are being served right now to allow only one request being sent to origin
     // (request coalescing)
     //
-    // Better solution would be to use std::shared_mutex, but here we need regular std::mutex for std::condition_variable
+    // Using regular std::mutex for std::condition_variable
     static std::mutex mtx_rc_;
     static UnordMapResponsesForRC coalesced_requests_;
     ResponseForCoalescedRequestsSharedPtr response_wrapper_rc_ptr_ {};

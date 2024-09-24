@@ -18,7 +18,7 @@ using BufferVectorSharedPtr = std::shared_ptr<BufferVector>;
  * @brief todo
  */
 struct CacheEntry {
-    explicit CacheEntry(uint32_t ringBufferCapacity);
+    explicit CacheEntry(uint32_t ringBufferCapacity) : single_buffer_blocks_capacity_(ringBufferCapacity) {}
     const uint32_t single_buffer_blocks_capacity_ {};
     std::atomic<uint32_t> headers_block_count_ {UINT32_MAX};
     std::atomic<uint32_t> data_block_count_ {UINT32_MAX};
@@ -92,10 +92,13 @@ public:
 
 private:
     void serveHeaders();
+    void busyWaitToGetNextHeadersBuffer(std::shared_lock<std::shared_mutex>& sharedLock);
     void parseAndEncodeHeaders();
     void serveData();
+    void busyWaitToGetNextDataBuffer(std::shared_lock<std::shared_mutex>& sharedLock);
     void parseAndEncodeData();
     void serveTrailers();
+    void busyWaitToGetNextTrailersBuffer(std::shared_lock<std::shared_mutex>& sharedLock);
     void parseAndEncodeTrailers();
     bool isDataBlockIndicatingEndStream() const;
 
@@ -103,11 +106,11 @@ private:
     Http::StreamDecoderFilterCallbacks* decoder_callbacks_ {};
 
     RingBufferQueueSharedPtr current_buffer_ {};
-    uint32_t read_block_count_ {0}, buffer_index_ {0}, block_index_ {0}, key_length_ {0};
+    uint32_t read_block_count_ {}, buffer_index_ {}, block_index_ {}, key_length_ {0};
     std::string data_str_ {};
-    bool key_read_done_ {false}, data_batch_complete_ {false}, end_stream_ {false};
-    ResponseHeaderMapImplPtr headers_ {ResponseHeaderMapImpl::create()};
-    ResponseTrailerMapImplPtr trailers_ {ResponseTrailerMapImpl::create()};
+    bool key_read_done_ {false}, data_batch_complete_ {false}, end_stream_ {};
+    ResponseHeaderMapImplPtr headers_ {};
+    ResponseTrailerMapImplPtr trailers_ {};
     Buffer::OwnedImpl data_ {};
 
     uint8_t* data_block_ {new uint8_t[BLOCK_SIZE_BYTES]};

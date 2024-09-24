@@ -1,15 +1,14 @@
+/***********************************************************************************************************************
+ * CREDITS TO: https://github.com/envoyproxy/envoy-filter-example/tree/main/http-filter-example
+ ***********************************************************************************************************************/
+
 #include <string>
 
 #include "envoy/registry/registry.h"
 #include "envoy/server/filter_config.h"
 
-#include "http_cache_rc.pb.h"
 #include "http_cache_rc.pb.validate.h"
 #include "http_cache_rc_filter.h"
-
-/***********************************************************************************************************************
- * CREDITS TO: https://github.com/envoyproxy/envoy-filter-example/tree/main/http-filter-example
- ***********************************************************************************************************************/
 
 namespace Envoy::Server::Configuration {
 

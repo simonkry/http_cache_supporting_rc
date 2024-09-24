@@ -1,9 +1,9 @@
 #include "ring_buffer.h"
 
-RingBufferQueue::RingBufferQueue(uint32_t blocksCapacity) : blocks_capacity_(blocksCapacity) {
+RingBufferQueue::RingBufferQueue(uint32_t ringBufferCapacity) : ring_buffer_capacity_(ringBufferCapacity) {
     // initialize the ring buffer
-    blocks_ = new Block[blocks_capacity_];
-    for (size_t i = 0; i < blocks_capacity_; i++) {
+    blocks_ = new Block[ring_buffer_capacity_];
+    for (size_t i = 0; i < ring_buffer_capacity_; i++) {
         blocks_[i].version_.store(0, std::memory_order_relaxed);
         blocks_[i].size_.store(0, std::memory_order_relaxed);
     }
@@ -15,7 +15,7 @@ RingBufferQueue::~RingBufferQueue() {
 
 bool RingBufferQueue::write(MessageSize size, const WriteCallback& writeCb) {
     // check if ring buffer is full, and if so, do not write (edited implementation)
-    if (header_.block_counter_.load(std::memory_order_acquire) >= blocks_capacity_) {
+    if (header_.block_counter_.load(std::memory_order_acquire) >= ring_buffer_capacity_) {
         return false;
     }
     // the next block index to write to

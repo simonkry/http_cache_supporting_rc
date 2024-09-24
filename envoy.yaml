@@ -26,7 +26,8 @@ static_resources:
           - name: envoy.filters.http.http_cache_rc          # before envoy.router because order matters!
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.http_cache_rc.Codec
-              ring_buffer_capacity: 1024                    # number of blocks
+              ring_buffer_capacity: 1                    # number of blocks
+              cache_capacity: 3                          # number of entries
           - name: envoy.filters.http.router
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
@@ -42,7 +43,7 @@ static_resources:
                   host_rewrite_literal: www.envoyproxy.io
                   cluster: service_envoyproxy_io
                   # Response Timeout (default: 15s):
-                  # Adjust the value for testing upstream request timeout (to 0.001s)
+                  # Adjust the value for testing upstream request timeout (lowest value: 0.001s)
                   #timeout: 0.001s
 
   clusters:

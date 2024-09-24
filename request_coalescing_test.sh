@@ -9,16 +9,13 @@ fi
 
 mkdir -p "logs"
 
-LOG_FILE_PATH_PREFIX="logs/rc_test_run_"
-LOG_FILE_PATH_PREFIX_DOCS="logs/docs_rc_test_run_"
-LOG_FILE_PATH_PREFIX_COMM="logs/community_rc_test_run_"
-LOG_FILE_PATH_PREFIX_TRAI="logs/training_rc_test_run_"
+LOG_FILE_PATH_PREFIX="logs/rc_test_run_root_"
+LOG_FILE_PATH_PREFIX_DOCS="logs/rc_test_run_docs_"
+LOG_FILE_PATH_PREFIX_COMM="logs/rc_test_run_community_"
+LOG_FILE_PATH_PREFIX_TRAI="logs/rc_test_run_training_"
 LOG_FILE_SUFFIX=".log"
 
-rm -f "$LOG_FILE_PATH_PREFIX"*
-rm -f "$LOG_FILE_PATH_PREFIX_DOCS"*
-rm -f "$LOG_FILE_PATH_PREFIX_COMM"*
-rm -f "$LOG_FILE_PATH_PREFIX_TRAI"*
+rm -f logs/rc_test_run_*
 
 echo "Test request coalescing: START"
 echo "------------------------------"
@@ -38,5 +35,5 @@ wait
 END_TIME=$(date +%s%3N)
 EXECUTION_TIME=$((END_TIME - START_TIME))
 
-echo "Time taken: $EXECUTION_TIME ms"
+echo "Time elapsed: $EXECUTION_TIME ms"
 echo "Test request coalescing: DONE, check log files"

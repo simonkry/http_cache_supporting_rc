@@ -6,18 +6,21 @@
 
 A simple, ring buffer RAM-only cache filter of HTTP responses optimized to solve the thundering herd problem by request coalescing.
 
-See commentary in source code for complete details.
+See detailed explanation down below or commentary in source code for complete information.
 
-## Git Flow
+## Git Workflow
 
-In real large scale production environment I would use `develop`, `feature-*`, `release-*` and `hotfix-*` branches.
+In real large scale production environment I would use some kind of Git workflow.
+
+For example Git Flow which defines `develop`, `feature-*`, `release-*` and `hotfix-*` branches.
 
 For this project I'm using only the `main` branch.
 
 ## Request coalescing (RC)
 
-the response will be streamed in real-time to all waiting connections for that request path.
+My implementation is based on std::condition_variable, std::mutex, std::shared_mutex and std::unordered_map.
 
+Sources of inspiration:
 [Explanation of request coalescing - bunny.net](https://support.bunny.net/hc/en-us/articles/6762047083922-Understanding-Request-Coalescing#:~:text=What%20is%20Request%20Coalescing%3F,they%20will%20be%20automatically%20merged.)
 
 [Implementation in Go](https://medium.com/@atarax/request-coalescing-a-shield-against-traffic-spikes-implementation-in-go-8d6cb3258630)
@@ -25,15 +28,11 @@ the response will be streamed in real-time to all waiting connections for that r
 ## Pros/Cons list of this assignment solution
 
 ### Pros:
--     Multithread safety
--     Cache key is calculated by a hash function with linear probing
--     Not caching 304 Not Modified
--     Simplicity in implementation of request coalescing - by mutex lock
+-     Full multithread safety (tested)
+-     Cache based on LRU algorithm
+-     Inner implementation of ring buffers supports concurrent writes and reads in blocks
 ### Cons:
--     Number of cache ring buffers is not limited so we can run out of memory (dynamic heap allocation)
--     Ring buffers are searched linearly
--     Cache key could be calculated by double hash function
--     Supports only HTTP insecure connection
+-     Supports only HTTP/1.x insecure connection
 -     Does not implement response updates if response changes over time
 
 ## Watermarking for coalesced requests
@@ -73,8 +72,8 @@ For debugging use:
 
 ## Example of usage
 
-1. `bazel-bin/envoy -l debug --concurrency 1 -c envoy.yaml` or `bazel-bin/envoy -l debug -c envoy.yaml`
-2. `time curl -v http://localhost:8000` (or open URL in web browser, use Developer Network Tool to see latency)
+1. `bazel-bin/envoy -l debug --concurrency 2 -c envoy.yaml`
+2. `time curl -v http://localhost:8000` (or open URL in web browser, use Developer Network Tool to see latency (F12), disable caching!)
 
 ## Envoy logging
 
@@ -103,8 +102,8 @@ To run the regular Envoy tests from this project:
 ## Conclusion
 
 - **[research]** The longest and hardest part of this project was definitely research (cca 40h), since I've started with Envoy from scratch.
-- **[implementation]** Fun but challenging part for me was implementation (cca 25h).
-- **[debugging and testing]** I couldn't work out how to create correct configuration file, so I did little debugging and testing.
+- **[implementation]** Fun but challenging part for me was implementation (cca 40h).
+- **[debugging and testing]** .
 
 To conclude, thanks to this project I've extended my knowledge about software networking from university (FIT CTU, subjects: BI-PSI, BI-VPS, BI-ST1) and used my C and C++ coding experience.
 
@@ -112,10 +111,5 @@ I am looking forward to receiving a code review.
 
 ## TODO list:
 
-- Debug request coalescing
-- Debug timeouts
-- Test all possible scenarios:
-  - Multiple origins (single cache capacity overflow)
-  - Request coalescing for multiple origins
-  - Deadlock!
+- Test all possible scenarios
 - Commentary, Write-up

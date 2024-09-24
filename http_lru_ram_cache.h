@@ -6,8 +6,6 @@
 
 #include "cache_entry.h"
 
-constexpr uint32_t CACHE_CAPACITY = 1024;
-
 namespace Envoy::Http {
 
 using LRUList = std::list<std::pair<std::string, CacheEntrySharedPtr>>;
@@ -17,6 +15,7 @@ using LRUList = std::list<std::pair<std::string, CacheEntrySharedPtr>>;
  */
 class HTTPLRURAMCache : public Logger::Loggable<Logger::Id::filter> {
 public:
+    void initCacheCapacity(uint32_t cacheCapacity);
     // Get the value for a given key
     CacheEntrySharedPtr at(const std::string& key);
     // Put a key-value pair into the cache
@@ -25,8 +24,8 @@ public:
     std::unordered_map<std::string, LRUList::iterator> getCacheMap() const;
 
 private:
-    const uint32_t capacity_ {CACHE_CAPACITY};
     mutable std::shared_mutex shared_mtx_ {};
+    uint32_t capacity_ {0};
     // std::unordered_map : Amortized Complexity: Due to rehashing, the amortized complexity
     // of operations (insertion, search) is O(1) on average
     std::unordered_map<std::string, LRUList::iterator> cache_map_ {};

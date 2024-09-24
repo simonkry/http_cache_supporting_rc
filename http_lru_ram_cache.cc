@@ -2,6 +2,14 @@
 
 namespace Envoy::Http {
 
+void HTTPLRURAMCache::initCacheCapacity(uint32_t cacheCapacity) {
+    std::unique_lock uniqueLock(shared_mtx_);
+    if (capacity_ != 0) {
+        return;
+    }
+    capacity_ = cacheCapacity;
+}
+
 CacheEntrySharedPtr HTTPLRURAMCache::at(const std::string& key) {
     std::shared_lock sharedLock(shared_mtx_);
     const auto &itCacheMap = cache_map_.find(key);
@@ -52,6 +60,7 @@ void HTTPLRURAMCache::insert(const std::string& key, const CacheEntrySharedPtr& 
 }
 
 uint32_t HTTPLRURAMCache::getCacheCapacity() const {
+    std::shared_lock sharedLock(shared_mtx_);
     return capacity_;
 }
 

@@ -12,7 +12,7 @@
 #include <atomic>
 #include <memory>
 
-constexpr uint8_t BLOCK_SIZE_BYTES = 64;
+constexpr uint8_t BLOCK_SIZE_BYTES = 64; // bytes
 
 using BlockVersion = uint32_t;
 using MessageSize = uint32_t;
@@ -38,13 +38,13 @@ struct Header {
  */
 class RingBufferQueue {
 public:
-    explicit RingBufferQueue(uint32_t blocksCapacity);
+    explicit RingBufferQueue(uint32_t ringBufferCapacity);
     ~RingBufferQueue();
     bool write(MessageSize size, const WriteCallback& writeCb);
     bool read(uint32_t blockIndex, uint8_t* data, MessageSize& size) const;
 
 private:
-    const uint32_t blocks_capacity_ {};
+    const uint32_t ring_buffer_capacity_ {};
     Block* blocks_ {};
     Header header_ {};
 };
