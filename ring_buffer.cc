@@ -1,7 +1,7 @@
 #include "ring_buffer.h"
 
 RingBufferQueue::RingBufferQueue(uint32_t ringBufferCapacity) : ring_buffer_capacity_(ringBufferCapacity) {
-    // initialize the ring buffer
+    // Initialize the ring buffer
     blocks_ = new Block[ring_buffer_capacity_];
     for (size_t i = 0; i < ring_buffer_capacity_; i++) {
         blocks_[i].version_.store(0, std::memory_order_relaxed);
@@ -14,11 +14,11 @@ RingBufferQueue::~RingBufferQueue() {
 }
 
 bool RingBufferQueue::write(MessageSize size, const WriteCallback& writeCb) {
-    // check if ring buffer is full, and if so, do not write (edited implementation)
+    // Check if ring buffer is full, and if so, do not write (edit of original implementation)
     if (header_.block_counter_.load(std::memory_order_acquire) >= ring_buffer_capacity_) {
         return false;
     }
-    // the next block index to write to
+    // The next block index to write to
     uint32_t blockIndex = header_.block_counter_.fetch_add(1, std::memory_order_relaxed);
     Block& block = blocks_[blockIndex];
 
@@ -26,16 +26,16 @@ bool RingBufferQueue::write(MessageSize size, const WriteCallback& writeCb) {
     // If the block has been written to before, it has an odd version
     // we need to make its version even before writing begins to indicate that writing is in progress
     if (block.version_ % 2 == 1){
-        // make the version even
+        // Make the version even
         block.version_.store(currentVersion, std::memory_order_release);
-        // store the newVersion used for after the writing is done
+        // Store the newVersion used for after the writing is done
         currentVersion++;
     }
-    // store the size
+    // Store the size
     block.size_.store(size, std::memory_order_release);
-    // perform write using the callback function
+    // Perform write using the callback function
     writeCb(block.data_);
-    // store the new odd version
+    // Store the new odd version
     block.version_.store(currentVersion, std::memory_order_release);
     return true;
 }

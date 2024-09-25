@@ -18,16 +18,13 @@ FilterHeadersStatus HttpCacheRCFilter::decodeHeaders(RequestHeaderMap& headers, 
     createRequestHeadersStrKey(headers);
     this_thread_id_ = std::this_thread::get_id();
 
-//    decoder_callbacks_->addDownstreamWatermarkCallbacks();
-//    decoder_callbacks_->onDecoderFilterAboveWriteBufferHighWatermark();
-
-    ENVOY_STREAM_LOG(debug, "[HttpCacheRCFilter::decodeHeaders] thisThreadID: {}", *decoder_callbacks_, threadIDToStr(this_thread_id_))
+    ENVOY_STREAM_LOG(trace, "[HttpCacheRCFilter::decodeHeaders] thisThreadID: {}", *decoder_callbacks_, threadIDToStr(this_thread_id_))
     ENVOY_STREAM_LOG(trace, "[HttpCacheRCFilter::decodeHeaders] end_stream: {}", *decoder_callbacks_, end_stream)
     ENVOY_STREAM_LOG(trace, "[HttpCacheRCFilter::decodeHeaders] headers.size(): {}", *decoder_callbacks_, headers.size())
     ENVOY_STREAM_LOG(trace, "[HttpCacheRCFilter::decodeHeaders] request_headers_str_key_: {}", *decoder_callbacks_, request_headers_str_key_)
-    ENVOY_STREAM_LOG(debug, "[HttpCacheRCFilter::decodeHeaders] cache_.getCacheMap().size(): {}", *decoder_callbacks_, cache_.getCacheMap().size())
+    ENVOY_STREAM_LOG(trace, "[HttpCacheRCFilter::decodeHeaders] cache_.getCacheMap().size(): {}", *decoder_callbacks_, cache_.getCacheMap().size())
 
-    // Process request coalescing and if it is the first request present (initial leader), query cache or origin
+    // Process request coalescing and if it is the first request present (initial leader), query the cache or origin
     ThreadStatus threadStatus = getThreadStatus();
     // LEADER: Cannot leave this thread waiting on cond_var, save decoder callbacks of this latter request and return
     // OTHER_GROUP_LEADER: Cannot leave this thread waiting on cond_var, save decoder callbacks of this request and return
@@ -35,7 +32,7 @@ FilterHeadersStatus HttpCacheRCFilter::decodeHeaders(RequestHeaderMap& headers, 
         return FilterHeadersStatus::StopIteration;
     }
     else if (threadStatus == ThreadStatus::WAITING) {
-        // This section enter only threads that have different std::thread::id from the leader thread of the current request group
+        // This section enter only threads that have different std::thread::id than the leader thread of the current request group
         waitForResponseAndServe();
         return FilterHeadersStatus::StopIteration;
     }
@@ -55,8 +52,8 @@ FilterHeadersStatus HttpCacheRCFilter::decodeHeaders(RequestHeaderMap& headers, 
         attendToOtherRCGroups();
         return FilterHeadersStatus::StopIteration;
     }
-    // No cached response
 
+    // No cached response
     entry_cached_ = false;
     cache_entry_producer_.initCacheEntry(config_->ring_buffer_capacity(), encoder_callbacks_);
     ENVOY_STREAM_LOG(debug, "[HttpCacheRCFilter::decodeHeaders] *CACHE MISS*", *decoder_callbacks_)
@@ -81,7 +78,7 @@ FilterHeadersStatus HttpCacheRCFilter::encodeHeaders(ResponseHeaderMap& headers,
             if (successful_status_code_) {
                 cache_.insert(request_headers_str_key_, cache_entry_producer_.getCacheEntryPtr());
             }
-            // Promote update to waiting threads to start reading
+            // Promote update to waiting threads to start reading (even alongside error status codes)
             notifyWaitingCoalescedRequests(cache_entry_producer_.getCacheEntryPtr());
             is_first_headers_ = false;
         }
@@ -157,7 +154,7 @@ bool HttpCacheRCFilter::checkSuccessfulStatusCode(const ResponseHeaderMap& heade
     return true;
 }
 
-// Method used for logging
+// Method used only for logging
 std::string HttpCacheRCFilter::threadIDToStr(const std::thread::id& threadId) {
     std::ostringstream oss;
     oss << threadId;
@@ -169,19 +166,20 @@ ThreadStatus HttpCacheRCFilter::getThreadStatus() {
         std::unique_lock lockRC(mtx_rc_);
         response_wrapper_rc_ptr_ = coalesced_requests_[request_headers_str_key_];
         if (response_wrapper_rc_ptr_ == nullptr) {
+            // Create new request group
             response_wrapper_rc_ptr_ = coalesced_requests_[request_headers_str_key_] = std::make_shared<ResponseForCoalescedRequests>();
-            // Set leader thread ID as the first thread
+            // Set leader thread ID
             response_wrapper_rc_ptr_->leader_thread_id_ = this_thread_id_;
             lockRC.unlock();
             std::unique_lock uniqueLockThreads(shared_mtx_threads_map_);
             leader_threads_for_rc_[this_thread_id_][request_headers_str_key_] = response_wrapper_rc_ptr_;
             uniqueLockThreads.unlock();
-            ENVOY_STREAM_LOG(debug, "[HttpCacheRCFilter::getThreadStatus] leaderThreadID: {}", *decoder_callbacks_,
+            ENVOY_STREAM_LOG(trace, "[HttpCacheRCFilter::getThreadStatus] leaderThreadID: {}", *decoder_callbacks_,
                              threadIDToStr(response_wrapper_rc_ptr_->leader_thread_id_))
             return ThreadStatus::INITIAL_LEADER;
         }
     }
-    ENVOY_STREAM_LOG(debug, "[HttpCacheRCFilter::getThreadStatus] leaderThreadID: {}", *decoder_callbacks_,
+    ENVOY_STREAM_LOG(trace, "[HttpCacheRCFilter::getThreadStatus] leaderThreadID: {}", *decoder_callbacks_,
                      threadIDToStr(response_wrapper_rc_ptr_->leader_thread_id_))
     if (this_thread_id_ == response_wrapper_rc_ptr_->leader_thread_id_) {
         // This section enters only the leader thread from current coalesced request group
@@ -201,7 +199,7 @@ bool HttpCacheRCFilter::isLeaderOfOtherRCGroup() const {
     if (leader_threads_for_rc_.contains(this_thread_id_)) {
         ENVOY_STREAM_LOG(debug, "[HttpCacheRCFilter::isLeaderOfOtherRCGroup] This thread is already leader of other RC group", *decoder_callbacks_)
         ENVOY_STREAM_LOG(trace, "[HttpCacheRCFilter::isLeaderOfOtherRCGroup] leader_threads_for_rc_[this_thread_id_].size(): {}", *decoder_callbacks_, leader_threads_for_rc_[this_thread_id_].size())
-        // Assign the callbacks to random (std::unordered_map::begin()) RC group
+        // Assign the callbacks and response helper to random (std::unordered_map::begin()) RC group
         leader_threads_for_rc_[this_thread_id_].begin()->second->other_rc_groups_ptr_->emplace_back(decoder_callbacks_, response_wrapper_rc_ptr_);
         return true;
     }
@@ -225,7 +223,7 @@ void HttpCacheRCFilter::waitForResponseAndServe() {
 void HttpCacheRCFilter::waitOnCondVar() const {
     std::unique_lock cvLock(mtx_rc_);
     ENVOY_STREAM_LOG(debug, "[HttpCacheRCFilter::waitOnCondVar] Waiting on cond_var", *decoder_callbacks_)
-    // Threads will wait here for cond_var.notify_all() callback OR when custom timeout callback hits -> error scenario (shouldn't happen)
+    // Threads will wait here for cond_var.notify_all() callback OR when timeout callback hits -> error scenario
     response_wrapper_rc_ptr_->cv_ptr_->wait_for(cvLock, std::chrono::seconds(COND_VAR_TIMEOUT), [&]{
         return (response_wrapper_rc_ptr_->shared_response_entry_ptr_ != nullptr);
     } );
@@ -233,6 +231,7 @@ void HttpCacheRCFilter::waitOnCondVar() const {
 }
 
 void HttpCacheRCFilter::notifyWaitingCoalescedRequests(const CacheEntrySharedPtr& responseEntryPtr) const {
+    // Update shared resource and notify waiting requests
     {
         std::lock_guard<std::mutex> lockGuard(mtx_rc_);
         response_wrapper_rc_ptr_->shared_response_entry_ptr_ = responseEntryPtr;
@@ -245,6 +244,7 @@ void HttpCacheRCFilter::detachCurrentRCGroup() const {
     ENVOY_STREAM_LOG(debug, "[HttpCacheRCFilter::detachCurrentRCGroup] Release current RC group from map", *encoder_callbacks_)
     {
         std::lock_guard lockGuard(mtx_rc_);
+        // Release current RC group from the map
         coalesced_requests_[request_headers_str_key_] = nullptr;
     }
 }
@@ -271,9 +271,9 @@ void HttpCacheRCFilter::attendToOtherRCGroups() {
         OtherRCGroupListSharedPtr otherRCGroupsPtr;
         sharedLockThreads.lock();
         if (!leader_threads_for_rc_[this_thread_id_].empty()) {
-            // Append the callbacks list to random (std::unordered_map::begin()) RC group
             otherRCGroupsPtr = leader_threads_for_rc_[this_thread_id_].begin()->second->other_rc_groups_ptr_;
             sharedLockThreads.unlock();
+            // Append the callbacks list to random (std::unordered_map::begin()) RC group
             otherRCGroupsPtr->splice(otherRCGroupsPtr->end(), *response_wrapper_rc_ptr_->other_rc_groups_ptr_);
             ENVOY_STREAM_LOG(debug, "[HttpCacheRCFilter::attendToOtherRCGroups] This thread is leader of other RC group; Return without waiting on cond_var",
                              *encoder_callbacks_)

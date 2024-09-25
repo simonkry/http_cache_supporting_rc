@@ -34,7 +34,7 @@ struct Header {
 
 /**
  * @brief Edited class of the original Single Producer, Multiple Consumer Queue (Ring Buffer).
- * After filling up the buffer do not loop back to the begging for cache purposes.
+ * After filling up the buffer does not loop back to the begging for cache purposes.
  */
 class RingBufferQueue {
 public:

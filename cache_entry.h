@@ -15,12 +15,14 @@ using BufferVector = std::vector<RingBufferQueueSharedPtr>;
 using BufferVectorSharedPtr = std::shared_ptr<BufferVector>;
 
 /**
- * @brief todo
+ * @brief Response from the origin server.
  */
 struct CacheEntry {
     explicit CacheEntry(uint32_t ringBufferCapacity) : single_buffer_blocks_capacity_(ringBufferCapacity) {}
     const uint32_t single_buffer_blocks_capacity_ {};
+    // Counter to provide information for buffer readers
     std::atomic<uint32_t> headers_block_count_ {UINT32_MAX};
+    // Counter to provide information for buffer readers
     std::atomic<uint32_t> data_block_count_ {UINT32_MAX};
     SharedMutexSharedPtr headers_mtx_ {std::make_shared<std::shared_mutex>()};
     BufferVectorSharedPtr headers_buffers_ {std::make_shared<BufferVector>()};
@@ -34,7 +36,7 @@ using CacheEntrySharedPtr = std::shared_ptr<CacheEntry>;
 
 
 /**
- * @brief todo
+ * @brief Writer class to process headers, data and trailers into blocks which puts into cache.
  */
 class CacheEntryProducer : public Logger::Loggable<Logger::Id::filter> {
 public:
@@ -75,6 +77,7 @@ private:
 
     bool headers_write_complete_ {false}, data_write_complete_ {false};
 
+    // Data block to be written into cache
     uint8_t* data_block_ {new uint8_t[BLOCK_SIZE_BYTES]};
     MessageSize message_size_ {0};
     uint32_t data_offset_ {0};
@@ -82,7 +85,7 @@ private:
 
 
 /**
- * @brief todo
+ * @brief Reader class that supports concurrent writing and reading of data, based on busy-waiting.
  */
 class CacheEntryConsumer : public Logger::Loggable<Logger::Id::filter> {
 public:
@@ -113,6 +116,7 @@ private:
     ResponseTrailerMapImplPtr trailers_ {};
     Buffer::OwnedImpl data_ {};
 
+    // Data block that data are copied into
     uint8_t* data_block_ {new uint8_t[BLOCK_SIZE_BYTES]};
     uint8_t* block_with_ones_ {new uint8_t[BLOCK_SIZE_BYTES]};
     mutable MessageSize message_size_ {0};

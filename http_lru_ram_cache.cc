@@ -17,6 +17,7 @@ CacheEntrySharedPtr HTTPLRURAMCache::at(const std::string& key) {
         return nullptr;
     }
     CacheEntrySharedPtr value = itCacheMap->second->second;
+    // Check if the position needs to be updated
     if (key != LRU_list_.front().first) {
         sharedLock.unlock();
         std::unique_lock uniqueLock(shared_mtx_);
@@ -35,6 +36,7 @@ void HTTPLRURAMCache::insert(const std::string& key, const CacheEntrySharedPtr& 
     // In case inserting key that already exists
     if (itCacheMap != cache_map_.end()) {
         sharedLock.unlock();
+        ENVOY_LOG(debug, "[HTTPLRURAMCache::insert] Overwriting an old element");
         std::unique_lock uniqueLock(shared_mtx_);
         // Remove the old node from the list and map
         LRU_list_.erase(itCacheMap->second);
@@ -51,11 +53,12 @@ void HTTPLRURAMCache::insert(const std::string& key, const CacheEntrySharedPtr& 
     uniqueLock.unlock();
     sharedLock.lock();
     if (cache_map_.size() > capacity_) {
+        ENVOY_LOG(debug, "[HTTPLRURAMCache::insert] Cache full, remove least recently used item");
         const auto& lastNodeKey = LRU_list_.back().first;
         sharedLock.unlock();
         uniqueLock.lock();
-        LRU_list_.pop_back();
         cache_map_.erase(lastNodeKey);
+        LRU_list_.pop_back();
     }
 }
 

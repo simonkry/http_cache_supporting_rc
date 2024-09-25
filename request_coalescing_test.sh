@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# This script will send `4 * NUM_OF_REQUESTS` requests - to test request grouping
+
 # Check if the parameter NUM_OF_REQUESTS is provided
 if [ -z "$1" ]; then
     echo "Error: Please provide the number of requests as the parameter"
@@ -22,12 +24,14 @@ echo "------------------------------"
 
 START_TIME=$(date +%s%3N)
 
-# Connect to the server NUM_OF_REQUESTS times in the same moment and output to log files
+# Connect to the server 4 * NUM_OF_REQUESTS times in the same moment and output to log files
 for i in $(seq 1 "$1"); do
-    ( curl -v http://localhost:8000 >> "$LOG_FILE_PATH_PREFIX$i$LOG_FILE_SUFFIX" 2>&1 &
-      curl -v http://localhost:8000/docs >> "$LOG_FILE_PATH_PREFIX_DOCS$i$LOG_FILE_SUFFIX" 2>&1 &
-      curl -v http://localhost:8000/community >> "$LOG_FILE_PATH_PREFIX_COMM$i$LOG_FILE_SUFFIX" 2>&1 &
-      curl -v http://localhost:8000/training >> "$LOG_FILE_PATH_PREFIX_TRAI$i$LOG_FILE_SUFFIX" 2>&1 & )
+    (
+        curl -v http://localhost:8000 >> "$LOG_FILE_PATH_PREFIX$i$LOG_FILE_SUFFIX" 2>&1 &
+        curl -v http://localhost:8000/docs >> "$LOG_FILE_PATH_PREFIX_DOCS$i$LOG_FILE_SUFFIX" 2>&1 &
+        curl -v http://localhost:8000/community >> "$LOG_FILE_PATH_PREFIX_COMM$i$LOG_FILE_SUFFIX" 2>&1 &
+        curl -v http://localhost:8000/training >> "$LOG_FILE_PATH_PREFIX_TRAI$i$LOG_FILE_SUFFIX" 2>&1 &
+    )
 done
 
 wait

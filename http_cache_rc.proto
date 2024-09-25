@@ -5,6 +5,6 @@ package envoy.extensions.filters.http.http_cache_rc;
 import "validate/validate.proto";
 
 message Codec {
-  uint32 ring_buffer_capacity = 1 [(validate.rules).uint32.gt = 0];     // number of blocks
+  uint32 ring_buffer_capacity = 1 [(validate.rules).uint32.gt = 0];     // number of blocks (1 block == 64B)
   uint32 cache_capacity = 2 [(validate.rules).uint32.gt = 0];           // number of entries
 }

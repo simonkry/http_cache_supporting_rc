@@ -27,13 +27,13 @@ using UnordMapResponsesForRC = std::unordered_map<std::string, ResponseForCoales
 using UnordMapLeaderThreads = std::unordered_map<std::thread::id, UnordMapResponsesForRC>;
 
 /**
- * @brief Class which satisfies groups of coalesced requests.
+ * @brief Structure which is used by groups of coalesced requests.
  */
 struct ResponseForCoalescedRequests {
     std::thread::id leader_thread_id_ {};
     // List of callbacks attended by the leader thread
     ListDecoderCallbacksSharedPtr waiting_decoder_callbacks_ptr_ { std::make_shared<std::list<Http::StreamDecoderFilterCallbacks*>>() };
-    // cond_var to lock servant threads
+    // Cond_var to lock other threads
     CondVarSharedPtr cv_ptr_ { std::make_shared<std::condition_variable>() };
     CacheEntrySharedPtr shared_response_entry_ptr_ {};
     // Additional list which is sometimes used when multiple different groups of requests are coalesced in the same moment
@@ -41,17 +41,17 @@ struct ResponseForCoalescedRequests {
 };
 
 /**
- * @brief
- * INITIAL_LEADER     ==
- * LEADER             ==
- * OTHER_GROUP_LEADER ==
- * WAITING            ==
+ * @brief Improves readability of the code.
+ * INITIAL_LEADER     == first request of this group which queries the cache or the origin web server
+ * LEADER             == this thread already created this group and queried
+ * OTHER_GROUP_LEADER == this thread already created other group and queried
+ * WAITING            == non-leader thread that can listen for a response from the leader
  */
 enum class ThreadStatus { INITIAL_LEADER, LEADER, OTHER_GROUP_LEADER, WAITING };
 
 /**
- * @brief HTTP RAM-only cache decoder/encoder filter, which supports request coalescing.
- * It caches responses based on key calculated by hash function of a string representation of request header.
+ * @brief HTTP RAM-only cache decoder/encoder (codec) filter, which supports request coalescing.
+ * It caches responses based on key calculated by hash function of a string representation of request headers.
  * Uses request coalescing technique based on std::conditional_variable.
  */
 class HttpCacheRCFilter : public Http::PassThroughFilter,
@@ -87,6 +87,7 @@ private:
     void attendToOtherRCGroups();
     void releaseLeaderThreadIfPossible() const;
 
+    // Provides ring_buffer_capacity and cache_capacity
     const HttpCacheRCConfigSharedPtr config_ {};
 
     // String key used for lookup in the cache OR into the map of coalesced requests
@@ -98,19 +99,21 @@ private:
     bool entry_cached_ {true}, successful_status_code_ {true},
          is_first_headers_ {true}, is_first_data_ {true}, is_first_trailers_ {true};
 
+    // Producer used in case the entry wasn't cached in the past (supports concurrent write and reads)
     CacheEntryProducer cache_entry_producer_ {};
+    // Consumer of cache entry (supports concurrent write and reads)
     CacheEntryConsumer cache_entry_consumer_ {};
 
-    // Map to keep track of what hosts are being served right now to allow only one request being sent to origin
-    // (request coalescing)
-    //
     // Using regular std::mutex for std::condition_variable
     static std::mutex mtx_rc_;
+    // Map to keep track of what hosts are being served right now
     static UnordMapResponsesForRC coalesced_requests_;
+    // Pointer to an item in the map of coalesced requests
     ResponseForCoalescedRequestsSharedPtr response_wrapper_rc_ptr_ {};
 
     std::thread::id this_thread_id_ {};
     static std::shared_mutex shared_mtx_threads_map_;
+    // Map to quickly check for current thread status (OTHER_GROUP_LEADER tag)
     static UnordMapLeaderThreads leader_threads_for_rc_;
 };
 

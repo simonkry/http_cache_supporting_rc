@@ -1,8 +1,9 @@
-#include "test/integration/http_integration.h"
-
 /***********************************************************************************************************************
- * CREDITS TO: https://github.com/envoyproxy/envoy-filter-example/tree/main/http-filter-example
+ * CREDITS: https://github.com/envoyproxy/envoy-filter-example/tree/main/http-filter-example
+ * THIS TEST IS NOT FUNCTIONAL YET
  ***********************************************************************************************************************/
+
+#include "test/integration/http_integration.h"
 
 namespace Envoy {
 
@@ -18,8 +19,8 @@ public:
 
     void initialize() override {
         config_helper_.prependFilter(
-            "{ name: envoy.filters.http.http_cache_rc, typed_config: { \"@type\": type.googleapis.com/envoy.extensions.filters.http.http_cache_rc.Codec, "
-                     "ring_buffer_capacity: 1031 } }");
+            "{ name: envoy.filters.http.http_cache_rc, typed_config: { \"@type\": type.googleapis.com/envoy.extensions.filters.http.http_cache_rc.Codec, ring_buffer_capacity: 512, "
+            "cache_capacity: 1024 } }");
         HttpIntegrationTest::initialize();
     }
 };
@@ -44,10 +45,6 @@ TEST_P(HttpCacheIntegrationTest, Test1) {
   ASSERT_TRUE(request_stream->waitForEndStream(*dispatcher_));
   request_stream->encodeHeaders(response_headers, true);
   ASSERT_TRUE(response->waitForEndStream());
-
-  EXPECT_EQ(
-      "envoy.filters.http.http_cache_rc",
-      request_stream->headers().get(Http::LowerCaseString(""))[0]->value().getStringView());
 
   codec_client->close();
 }

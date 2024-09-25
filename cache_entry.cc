@@ -120,6 +120,7 @@ void CacheEntryProducer::writeBlockToBuffer() {
     if (buffers_->empty() || !buffers_->back()->write(message_size_, writeBlockCb)) {
         ENVOY_STREAM_LOG(debug, "[CacheEntryProducer::writeBlockToBuffer] Emplacing new buffer", *encoder_callbacks_)
         std::unique_lock uniqueLock(*shared_mtx_);
+        // Emplace next buffer
         buffers_->emplace_back(std::make_shared<RingBufferQueue>(cache_entry_ptr_->single_buffer_blocks_capacity_));
         uniqueLock.unlock();
         buffers_->back()->write(message_size_, writeBlockCb);
@@ -162,6 +163,8 @@ void CacheEntryConsumer::serveHeaders() {
     sharedLock.unlock();
     busyWaitToGetNextHeadersBuffer(sharedLock);
 
+    // Loop that ends with the block counter being equal to the desired number of blocks
+    // Busy-waiting technique
     while (read_block_count_ < cache_entry_ptr_->headers_block_count_.load(std::memory_order_acquire)) {
         if (current_buffer_->read(block_index_, data_block_, message_size_)) {
             ENVOY_STREAM_LOG(trace, "[CacheEntryConsumer::serveHeaders] message_size_: {}",
@@ -177,6 +180,7 @@ void CacheEntryConsumer::serveHeaders() {
         else {
             ENVOY_STREAM_LOG(debug, "[CacheEntryConsumer::serveHeaders] Busy-wait on reading; read_block_count_: {}, headers_block_count_: {}",
                              *decoder_callbacks_, read_block_count_, cache_entry_ptr_->headers_block_count_.load(std::memory_order_acquire))
+            // Pass on CPU time to another thread with the same priority
             std::this_thread::yield();
         }
     }
@@ -193,6 +197,7 @@ void CacheEntryConsumer::busyWaitToGetNextHeadersBuffer(std::shared_lock<std::sh
             sharedLock.unlock();
             ENVOY_STREAM_LOG(debug, "[CacheEntryConsumer::busyWaitToGetNextHeadersBuffer] Busy-wait on getting next buffer; read_block_count_: {}, headers_block_count_: {}",
                              *decoder_callbacks_, read_block_count_, cache_entry_ptr_->headers_block_count_.load(std::memory_order_acquire))
+            // Pass on CPU time to another thread with the same priority
             std::this_thread::yield();
             continue;
         }
@@ -208,9 +213,10 @@ void CacheEntryConsumer::busyWaitToGetNextHeadersBuffer(std::shared_lock<std::sh
 }
 
 void CacheEntryConsumer::parseAndEncodeHeaders() {
-    // Message containing data
+    // Message with content
     if (message_size_ > 0) {
         if (key_length_ == 0 && message_size_ == BLOCK_SIZE_BYTES && isDataBlockIndicatingEndStream()) {
+            // End stream block detected
             end_stream_ = true;
             ENVOY_STREAM_LOG(trace, "[CacheEntryConsumer::parseAndEncodeHeaders] encodeHeaders, end_stream_: {}",
                              *decoder_callbacks_, end_stream_)
@@ -238,7 +244,7 @@ void CacheEntryConsumer::parseAndEncodeHeaders() {
     }
     // Empty message
     else {
-        // Delimiter block detection (expecting non-empty keys)
+        // Delimiter block detection (parser is expecting non-empty keys)
         if (key_length_ == 0) {
             ENVOY_STREAM_LOG(trace, "[CacheEntryConsumer::parseAndEncodeHeaders] encodeHeaders, end_stream_: {}",
                              *decoder_callbacks_, false)
@@ -270,6 +276,8 @@ void CacheEntryConsumer::serveData() {
     sharedLock.unlock();
     busyWaitToGetNextDataBuffer(sharedLock);
 
+    // Loop that ends with the block counter being equal to the desired number of blocks
+    // Busy-waiting technique
     while (read_block_count_ < cache_entry_ptr_->data_block_count_.load(std::memory_order_acquire)) {
         if (current_buffer_->read(block_index_, data_block_, message_size_)) {
             ENVOY_STREAM_LOG(trace, "[CacheEntryConsumer::serveData] message_size_: {}",
@@ -285,6 +293,7 @@ void CacheEntryConsumer::serveData() {
         else {
             ENVOY_STREAM_LOG(debug, "[CacheEntryConsumer::serveData] Busy-wait on reading; read_block_count_: {}, data_block_count_: {}, block_index_: {}, cache_entry_ptr_->single_buffer_blocks_capacity_: {}",
                              *decoder_callbacks_, read_block_count_, cache_entry_ptr_->data_block_count_.load(std::memory_order_acquire), block_index_, cache_entry_ptr_->single_buffer_blocks_capacity_)
+            // Pass on CPU time to another thread with the same priority
             std::this_thread::yield();
         }
     }
@@ -301,6 +310,7 @@ void CacheEntryConsumer::busyWaitToGetNextDataBuffer(std::shared_lock<std::share
             sharedLock.unlock();
             ENVOY_STREAM_LOG(debug, "[CacheEntryConsumer::busyWaitToGetNextDataBuffer] Busy-wait on getting next buffer; read_block_count_: {}, data_block_count_: {}",
                              *decoder_callbacks_, read_block_count_, cache_entry_ptr_->data_block_count_.load(std::memory_order_acquire))
+            // Pass on CPU time to another thread with the same priority
             std::this_thread::yield();
             continue;
         }
@@ -316,9 +326,10 @@ void CacheEntryConsumer::busyWaitToGetNextDataBuffer(std::shared_lock<std::share
 }
 
 void CacheEntryConsumer::parseAndEncodeData() {
-    // Message containing data
+    // Message with content
     if (message_size_ > 0) {
         if (data_batch_complete_ && message_size_ == BLOCK_SIZE_BYTES && isDataBlockIndicatingEndStream()) {
+            // End stream block detected
             end_stream_ = true;
             ENVOY_STREAM_LOG(trace, "[CacheEntryConsumer::parseAndEncodeData] encodeData, data_:\n{}\nend_stream_: {}",
                              *decoder_callbacks_, data_.toString(), end_stream_)
@@ -358,12 +369,14 @@ void CacheEntryConsumer::serveTrailers() {
     sharedLock.unlock();
     busyWaitToGetNextTrailersBuffer(sharedLock);
 
+    // Loop that ends with the end stream being detected (a block with size 0 full of binary 1)
+    // Busy-waiting technique
     while (true) {
         if (current_buffer_->read(block_index_, data_block_, message_size_)) {
             ENVOY_STREAM_LOG(trace, "[CacheEntryConsumer::serveTrailers] message_size_: {}",
                              *decoder_callbacks_, message_size_)
             parseAndEncodeTrailers();
-            // Trailer reading must end with end_stream block
+            // Trailer reading must end with an end_stream block
             if (end_stream_) {
                 return;
             }
@@ -376,6 +389,7 @@ void CacheEntryConsumer::serveTrailers() {
         else {
             ENVOY_STREAM_LOG(debug, "[CacheEntryConsumer::serveTrailers] Busy-wait on reading; end_stream_: {}",
                              *decoder_callbacks_, end_stream_)
+            // Pass on CPU time to another thread with the same priority
             std::this_thread::yield();
         }
     }
@@ -389,6 +403,7 @@ void CacheEntryConsumer::busyWaitToGetNextTrailersBuffer(std::shared_lock<std::s
             sharedLock.unlock();
             ENVOY_STREAM_LOG(debug, "[CacheEntryConsumer::busyWaitToGetNextTrailersBuffer] Busy-wait on getting next buffer; end_stream_: {}",
                              *decoder_callbacks_, end_stream_)
+            // Pass on CPU time to another thread with the same priority
             std::this_thread::yield();
             continue;
         }
@@ -404,9 +419,10 @@ void CacheEntryConsumer::busyWaitToGetNextTrailersBuffer(std::shared_lock<std::s
 }
 
 void CacheEntryConsumer::parseAndEncodeTrailers() {
-    // Message containing data
+    // Message with content
     if (message_size_ > 0) {
         if (key_length_ == 0 && message_size_ == BLOCK_SIZE_BYTES && isDataBlockIndicatingEndStream()) {
+            // End stream block detected
             end_stream_ = true;
             ENVOY_STREAM_LOG(trace, "[CacheEntryConsumer::parseAndEncodeTrailers] isDataBlockIndicatingEndStream(): {}",
                              *decoder_callbacks_, end_stream_)
@@ -434,7 +450,7 @@ void CacheEntryConsumer::parseAndEncodeTrailers() {
     }
     // Empty message
     else {
-        // Delimiter block detection (expecting non-empty keys)
+        // Delimiter block detection (parser is expecting non-empty keys)
         if (key_length_ == 0) {
             ENVOY_STREAM_LOG(trace, "[CacheEntryConsumer::parseAndEncodeTrailers] encodeTrailers", *decoder_callbacks_)
             decoder_callbacks_->encodeTrailers(std::move(trailers_));

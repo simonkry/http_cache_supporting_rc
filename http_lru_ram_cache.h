@@ -1,5 +1,5 @@
 /***********************************************************************************************************************
- * CREDITS TO: https://www.geeksforgeeks.org/lru-cache-implementation-using-double-linked-lists
+ * INSPIRATION TAKEN FROM: https://www.geeksforgeeks.org/lru-cache-implementation-using-double-linked-lists
  ***********************************************************************************************************************/
 
 #pragma once
@@ -12,6 +12,7 @@ using LRUList = std::list<std::pair<std::string, CacheEntrySharedPtr>>;
 
 /**
  * @brief HTTP Least-Recently-Used RAM cache.
+ * Uses double linked list from the standard library.
  */
 class HTTPLRURAMCache : public Logger::Loggable<Logger::Id::filter> {
 public:
