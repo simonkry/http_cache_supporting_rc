@@ -2,10 +2,6 @@
 
 namespace Envoy::Http {
 
-CacheEntryProducer::~CacheEntryProducer() {
-    delete[] data_block_;
-}
-
 void CacheEntryProducer::initCacheEntry(uint32_t ringBufferCapacity, Http::StreamEncoderFilterCallbacks* encoderCallbacks) {
     cache_entry_ptr_ = std::make_shared<CacheEntry>(ringBufferCapacity);
     encoder_callbacks_ = encoderCallbacks;
@@ -108,7 +104,7 @@ bool CacheEntryProducer::writeToBlock(const std::string_view& data) {
 void CacheEntryProducer::writeDelimiterBlock(bool end_stream) {
     if (end_stream) {
         message_size_ = BLOCK_SIZE_BYTES;
-        memset(data_block_, 1, message_size_);
+        memset(data_block_, 0xFF, message_size_);
         writeBlockToBuffer(); // delimiter block full of 1 that indicates end of stream
     }
     else {
@@ -130,12 +126,14 @@ void CacheEntryProducer::writeBlockToBuffer() {
 
 
 
-CacheEntryConsumer::CacheEntryConsumer() {
-    memset(block_with_ones_, 1, BLOCK_SIZE_BYTES);
-}
+std::atomic<bool> CacheEntryConsumer::is_block_with_ones_initialized_ {false};
+uint8_t CacheEntryConsumer::block_with_ones_[BLOCK_SIZE_BYTES] {};
 
-CacheEntryConsumer::~CacheEntryConsumer() {
-    delete[] data_block_;
+CacheEntryConsumer::CacheEntryConsumer() {
+    if (!is_block_with_ones_initialized_.load(std::memory_order_acquire)) {
+        is_block_with_ones_initialized_.store(true, std::memory_order_release);
+        memset(block_with_ones_, 0xFF, BLOCK_SIZE_BYTES);
+    }
 }
 
 void CacheEntryConsumer::serveCachedResponse(CacheEntrySharedPtr responseEntryPtr, Http::StreamDecoderFilterCallbacks* decoderCallbacks) {

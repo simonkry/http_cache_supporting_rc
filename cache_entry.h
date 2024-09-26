@@ -40,7 +40,6 @@ using CacheEntrySharedPtr = std::shared_ptr<CacheEntry>;
  */
 class CacheEntryProducer : public Logger::Loggable<Logger::Id::filter> {
 public:
-    ~CacheEntryProducer();
     void initCacheEntry(uint32_t ringBufferCapacity, Http::StreamEncoderFilterCallbacks* encoderCallbacks);
     CacheEntrySharedPtr getCacheEntryPtr() const;
     void writeHeaders(const ResponseHeaderMap& headers, bool end_stream);
@@ -69,6 +68,7 @@ private:
     };
 
     CacheEntrySharedPtr cache_entry_ptr_ {};
+    // Used only for logging
     Http::StreamEncoderFilterCallbacks* encoder_callbacks_ {};
 
     SharedMutexSharedPtr shared_mtx_ {};
@@ -78,7 +78,7 @@ private:
     bool headers_write_complete_ {false}, data_write_complete_ {false};
 
     // Data block to be written into cache
-    uint8_t* data_block_ {new uint8_t[BLOCK_SIZE_BYTES]};
+    uint8_t data_block_[BLOCK_SIZE_BYTES];
     MessageSize message_size_ {0};
     uint32_t data_offset_ {0};
 };
@@ -90,7 +90,6 @@ private:
 class CacheEntryConsumer : public Logger::Loggable<Logger::Id::filter> {
 public:
     CacheEntryConsumer();
-    ~CacheEntryConsumer();
     void serveCachedResponse(CacheEntrySharedPtr responseEntryPtr, Http::StreamDecoderFilterCallbacks* decoderCallbacks);
 
 private:
@@ -117,9 +116,12 @@ private:
     Buffer::OwnedImpl data_ {};
 
     // Data block that data are copied into
-    uint8_t* data_block_ {new uint8_t[BLOCK_SIZE_BYTES]};
-    uint8_t* block_with_ones_ {new uint8_t[BLOCK_SIZE_BYTES]};
+    uint8_t data_block_[BLOCK_SIZE_BYTES] {};
     mutable MessageSize message_size_ {0};
+
+    // Helper boolean and array to compare for delimiter block
+    static std::atomic<bool> is_block_with_ones_initialized_;
+    static uint8_t block_with_ones_[BLOCK_SIZE_BYTES];
 };
 
 } // namespace Envoy::Http
